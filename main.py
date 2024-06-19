@@ -61,7 +61,7 @@ def load_data(file_path, modos, periodo_range, zonas):
         query += " AND " + " AND ".join(filters)
     
     # Limitar el tamaño de la consulta
-    query += " LIMIT 10000"  # Ajusta este valor según sea necesario
+    query += " LIMIT 2000000"  # Ajusta este valor según sea necesario
     
     df = pd.read_sql(query, conn)
     conn.close()
