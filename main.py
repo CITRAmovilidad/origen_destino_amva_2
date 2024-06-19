@@ -10,7 +10,7 @@ st.set_page_config(layout="wide")
 # URL del archivo en Google Drive
 file_id = '1MK_XITLeRl12hHa6pGoCAbc1hOBfReve'
 #url = f'https://drive.google.com/uc?export=download&id={file_id}'
-file_url = f'https://drive.google.com/uc?id={file_id}'
+file_url = f'https://drive.google.com/uc?export=download&id={file_id}'
 output = 'viajes.db'
 
 # Descargar el archivo
@@ -20,19 +20,6 @@ def download_file(url, output):
 
 # Crear un contenedor vacío para el spinner
 spinner_placeholder = st.empty()
-
-
-# Cargar datos GeoJSON
-with open('map.geo.json') as f:
-    geojson_data = json.load(f)
-
-# Convertir 'Nueva_Zona' a int dentro del GeoJSON, con manejo de errores
-for feature in geojson_data.get('features', []):
-    feature['properties']['Nueva_Zona'] = int(feature['properties']['Nueva_Zona'])
-
-# Conectar a la base de datos SQLite
-conn = sqlite3.connect('viajes.db')
-
 
 # HTML y CSS para centrar el spinner
 spinner_html = """
@@ -53,11 +40,21 @@ spinner_html = """
     </div>
 </div>
 """
-
 # Mostrar el spinner
 spinner_placeholder.markdown(spinner_html, unsafe_allow_html=True)
 
 download_file(file_url, output)
+
+# Cargar datos GeoJSON
+with open('map.geo.json') as f:
+    geojson_data = json.load(f)
+
+# Convertir 'Nueva_Zona' a int dentro del GeoJSON, con manejo de errores
+for feature in geojson_data.get('features', []):
+    feature['properties']['Nueva_Zona'] = int(feature['properties']['Nueva_Zona'])
+
+# Conectar a la base de datos SQLite
+conn = sqlite3.connect('viajes.db')
 
 # Definir función para cargar datos basados en filtros
 @st.cache_data
