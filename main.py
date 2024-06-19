@@ -93,7 +93,7 @@ selected_modo = st.multiselect(
 
 selected_periodo = st.slider(
     'Seleccione el periodo del día',
-    min_value=0, max_value=23, value=(0, 23), step=1
+    min_value=0, max_value=23, value=(5, 20), step=1
 )
 
 selected_zona = st.multiselect(
