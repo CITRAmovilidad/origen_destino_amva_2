@@ -29,10 +29,20 @@ def load_geojson():
         feature['properties']['Nueva_Zona'] = int(feature['properties']['Nueva_Zona'])
     return geojson_data
 
+# Obtener los valores únicos de las columnas 'origen' y 'destino'
+@st.cache_data
+def get_unique_zones(file_path):
+    conn = sqlite3.connect(file_path)
+    query = "SELECT DISTINCT origen FROM viajes WHERE profesional = 'No' UNION SELECT DISTINCT destino FROM viajes WHERE profesional = 'No'"
+    df = pd.read_sql(query, conn)
+    conn.close()
+    return df['origen'].astype(str).tolist()
+
 # Definir función para cargar datos basados en filtros
 @st.cache_data
 def load_data(file_path, modos, periodo_range, zonas):
     conn = sqlite3.connect(file_path)
+    
     query = "SELECT origen, destino, periodo, modo, viajes FROM viajes WHERE profesional = 'No'"
     
     filters = []
@@ -50,8 +60,19 @@ def load_data(file_path, modos, periodo_range, zonas):
     if filters:
         query += " AND " + " AND ".join(filters)
     
+    # Limitar el tamaño de la consulta
+    query += " LIMIT 10000"  # Ajusta este valor según sea necesario
+    
     df = pd.read_sql(query, conn)
     conn.close()
+    
+    # Convertir tipos de datos para ahorrar memoria
+    df['origen'] = df['origen'].astype('category')
+    df['destino'] = df['destino'].astype('category')
+    df['periodo'] = df['periodo'].astype('category')
+    df['modo'] = df['modo'].astype('category')
+    df['viajes'] = pd.to_numeric(df['viajes'], downcast='integer')
+    
     return df
 
 # Descargar el archivo de base de datos
@@ -59,6 +80,9 @@ download_file(file_url, output)
 
 # Cargar los datos GeoJSON
 geojson_data = load_geojson()
+
+# Obtener los valores únicos de las zonas
+unique_zones = get_unique_zones(output)
 
 # Definir filtros de usuario
 selected_modo = st.multiselect(
@@ -74,17 +98,17 @@ selected_periodo = st.slider(
 
 selected_zona = st.multiselect(
     'Seleccione la(s) zona(s) que desea analizar',
-    [str(i) for i in range(1, 1000)]  # Asume que las zonas están en el rango 1-999
+    unique_zones
 )
 
 # Mostrar un spinner durante la carga de datos
 with st.spinner('Cargando datos...'):
     df = load_data(output, selected_modo, selected_periodo, selected_zona)
 
-if df is not None:
+if df is not None and not df.empty:
     st.success('¡Los datos se cargaron correctamente!')
 else:
-    st.error("No se pudieron cargar los datos")
+    st.error("No se pudieron cargar los datos o no hay datos disponibles con los filtros seleccionados")
 
 # Convertir 'PXX' en int en la columna 'periodo'
 df['periodo'] = df['periodo'].apply(lambda x: int(x[1:]))
@@ -93,13 +117,13 @@ df['periodo'] = df['periodo'].apply(lambda x: int(x[1:]))
 st.title('Viajes Origen y Destino en el AMVA')
 
 # Agrupar y mostrar datos
-dist = df.groupby(['periodo'])['viajes'].sum().reset_index()
+dist = df.groupby(['periodo'], observed=False)['viajes'].sum().reset_index()
 st.header('Distribución Horaria de Viajes')
 st.bar_chart(dist, x="periodo", y="viajes", color="#228B22")
 
 # Filtrar los datos para generación y atracción
-viajes_o = df.groupby(['destino'])['viajes'].sum().reset_index()
-viajes_d = df.groupby(['origen'])['viajes'].sum().reset_index()
+viajes_o = df.groupby(['destino'], observed=False)['viajes'].sum().reset_index()
+viajes_d = df.groupby(['origen'], observed=False)['viajes'].sum().reset_index()
 
 col1, col2 = st.columns(2)
 
