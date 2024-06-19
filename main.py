@@ -4,61 +4,35 @@ import sqlite3
 import json
 import pandas as pd
 import gdown
+import os
 
 st.set_page_config(layout="wide")
 
 # URL del archivo en Google Drive
 file_id = '1MK_XITLeRl12hHa6pGoCAbc1hOBfReve'
-#url = f'https://drive.google.com/uc?export=download&id={file_id}'
 file_url = f'https://drive.google.com/uc?export=download&id={file_id}'
 output = 'viajes.db'
 
-# Descargar el archivo
-@st.cache_resource
+# Descargar el archivo si no existe
+@st.cache_data
 def download_file(url, output):
-    gdown.download(url, output, quiet=False)
-
-# Crear un contenedor vacío para el spinner
-spinner_placeholder = st.empty()
-
-# HTML y CSS para centrar el spinner
-spinner_html = """
-<style>
-.spinner-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 80vh;
-}
-.spinner {
-    font-size: 24px;
-}
-</style>
-<div class="spinner-container">
-    <div class="spinner">
-        ⏳ Cargando datos. Esto tardará unos minutos, por favor espere...
-    </div>
-</div>
-"""
-# Mostrar el spinner
-spinner_placeholder.markdown(spinner_html, unsafe_allow_html=True)
-
-download_file(file_url, output)
+    if not os.path.exists(output):
+        gdown.download(url, output, quiet=False)
+    return output
 
 # Cargar datos GeoJSON
-with open('map.geo.json') as f:
-    geojson_data = json.load(f)
-
-# Convertir 'Nueva_Zona' a int dentro del GeoJSON, con manejo de errores
-for feature in geojson_data.get('features', []):
-    feature['properties']['Nueva_Zona'] = int(feature['properties']['Nueva_Zona'])
-
-# Conectar a la base de datos SQLite
-conn = sqlite3.connect('viajes.db')
+@st.cache_data
+def load_geojson():
+    with open('map.geo.json') as f:
+        geojson_data = json.load(f)
+    for feature in geojson_data.get('features', []):
+        feature['properties']['Nueva_Zona'] = int(feature['properties']['Nueva_Zona'])
+    return geojson_data
 
 # Definir función para cargar datos basados en filtros
 @st.cache_data
-def load_data(modos, periodo_range, zonas):
+def load_data(file_path, modos, periodo_range, zonas):
+    conn = sqlite3.connect(file_path)
     query = "SELECT origen, destino, periodo, modo, viajes FROM viajes WHERE profesional = 'No'"
     
     filters = []
@@ -76,7 +50,15 @@ def load_data(modos, periodo_range, zonas):
     if filters:
         query += " AND " + " AND ".join(filters)
     
-    return pd.read_sql(query, conn)
+    df = pd.read_sql(query, conn)
+    conn.close()
+    return df
+
+# Descargar el archivo de base de datos
+download_file(file_url, output)
+
+# Cargar los datos GeoJSON
+geojson_data = load_geojson()
 
 # Definir filtros de usuario
 selected_modo = st.multiselect(
@@ -95,14 +77,12 @@ selected_zona = st.multiselect(
     [str(i) for i in range(1, 1000)]  # Asume que las zonas están en el rango 1-999
 )
 
-# Cargar los datos basados en filtros
-df = load_data(selected_modo, selected_periodo, selected_zona)
-
-# Eliminar el spinner después de cargar los datos
-spinner_placeholder.empty()
+# Mostrar un spinner durante la carga de datos
+with st.spinner('Cargando datos...'):
+    df = load_data(output, selected_modo, selected_periodo, selected_zona)
 
 if df is not None:
-    st.success('¡los datos se cargaron correctamente!')
+    st.success('¡Los datos se cargaron correctamente!')
 else:
     st.error("No se pudieron cargar los datos")
 
@@ -112,17 +92,14 @@ df['periodo'] = df['periodo'].apply(lambda x: int(x[1:]))
 # Título de la aplicación
 st.title('Viajes Origen y Destino en el AMVA')
 
-# Filtrar los datos
-df_filtered = df
-
 # Agrupar y mostrar datos
-dist = df_filtered.groupby(['periodo'])['viajes'].sum().reset_index()
+dist = df.groupby(['periodo'])['viajes'].sum().reset_index()
 st.header('Distribución Horaria de Viajes')
 st.bar_chart(dist, x="periodo", y="viajes", color="#228B22")
 
 # Filtrar los datos para generación y atracción
-viajes_o = df_filtered.groupby(['destino'])['viajes'].sum().reset_index()
-viajes_d = df_filtered.groupby(['origen'])['viajes'].sum().reset_index()
+viajes_o = df.groupby(['destino'])['viajes'].sum().reset_index()
+viajes_d = df.groupby(['origen'])['viajes'].sum().reset_index()
 
 col1, col2 = st.columns(2)
 
@@ -137,7 +114,7 @@ with col1:
     fig1.update_layout(
         margin={'l': 0, 'r': 0, 't': 50, 'b': 0},
         height=750,  # Ajustar la altura del gráfico
-        width=2800,  # Ajustar el ancho del gráfico
+        width=1400,  # Ajustar el ancho del gráfico
         coloraxis_colorbar=dict(
             title="Viajes",
             titleside="right",
@@ -157,7 +134,7 @@ with col2:
     fig2.update_layout(
         margin={'l': 0, 'r': 0, 't': 50, 'b': 0},
         height=750,  # Ajustar la altura del gráfico
-        width=2800,  # Ajustar el ancho del gráfico
+        width=1400,  # Ajustar el ancho del gráfico
         coloraxis_colorbar=dict(
             title="Viajes",
             titleside="right",
@@ -165,6 +142,3 @@ with col2:
         )
     )
     st.plotly_chart(fig2)
-
-# Cerrar la conexión a la base de datos
-conn.close()
