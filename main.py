@@ -10,7 +10,7 @@ st.set_page_config(layout="wide")
 # URL del archivo en Google Drive
 file_id = '1MK_XITLeRl12hHa6pGoCAbc1hOBfReve'
 #url = f'https://drive.google.com/uc?export=download&id={file_id}'
-file_url = f'https://drive.google.com/uc?id={file_id}'
+file_url = f'https://drive.google.com/uc?export=download&id={file_id}'
 output = 'viajes.db'
 
 # Descargar el archivo
