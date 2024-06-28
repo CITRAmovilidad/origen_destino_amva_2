@@ -5,8 +5,34 @@ import json
 import pandas as pd
 import gdown
 import os
+from PIL import Image
 
 st.set_page_config(layout="wide")
+
+path_logo = 'img/Logo-CITRA-2022-01.png'
+
+logo = Image.open(path_logo)
+
+col1, col2, col3, col4, col5, col6 = st.columns(6)
+
+with col1:
+    st.write(' ')
+
+with col2:
+    st.write(' ')
+
+with col3:
+    st.write(' ')
+
+with col4:
+    st.write(' ')
+
+with col5:
+    st.write(' ')
+    
+with col6:
+    st.image(logo, width=180, use_column_width = "always")
+
 
 # URL del archivo en Google Drive
 file_id = '1MK_XITLeRl12hHa6pGoCAbc1hOBfReve'
