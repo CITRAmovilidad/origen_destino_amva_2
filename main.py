@@ -110,6 +110,9 @@ geojson_data = load_geojson()
 # Obtener los valores únicos de las zonas
 unique_zones = get_unique_zones(output)
 
+# Título de la aplicación
+st.title('Viajes Origen y Destino en el AMVA')
+
 # Definir filtros de usuario
 selected_modo = st.multiselect(
     'Seleccione el modo de transporte que quiera evaluar',
@@ -123,7 +126,7 @@ selected_periodo = st.slider(
 )
 
 selected_zona = st.multiselect(
-    'Seleccione la(s) zona(s) que desea analizar',
+    'Seleccione la(s) zona(s) que desea analizar (ZAT)',
     unique_zones
 )
 
@@ -139,8 +142,7 @@ else:
 # Convertir 'PXX' en int en la columna 'periodo'
 df['periodo'] = df['periodo'].apply(lambda x: int(x[1:]))
 
-# Título de la aplicación
-st.title('Viajes Origen y Destino en el AMVA')
+
 
 # Agrupar y mostrar datos
 dist = df.groupby(['periodo'], observed=False)['viajes'].sum().reset_index()
@@ -155,6 +157,7 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.header("Generación")
+    st.text('Se tienen en cuenta las zonas seleccionadas como origen(es) del (de los) viaje(s) y en el mapa se observan los destinos en el AMVA.')
     fig1 = px.choropleth_mapbox(
         viajes_o, geojson=geojson_data, locations='destino', featureidkey="properties.Nueva_Zona",
         color='viajes', color_continuous_scale="Greens", mapbox_style="carto-darkmatter",
@@ -175,6 +178,7 @@ with col1:
 
 with col2:
     st.header("Atracción")
+    st.text('Se tienen en cuenta las zonas seleccionadas como destino(s) del (de los) viaje(s) y en el mapa se observan los orígenes en el AMVA.')
     fig2 = px.choropleth_mapbox(
         viajes_d, geojson=geojson_data, locations='origen', featureidkey="properties.Nueva_Zona",
         color='viajes', color_continuous_scale="Reds", mapbox_style="carto-darkmatter",
